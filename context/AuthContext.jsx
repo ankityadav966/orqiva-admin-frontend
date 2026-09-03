@@ -9,8 +9,6 @@ const AuthContext = createContext({
   user: null,
   token: null,
   loading: true,
-  sendOtp: async () => {},
-  verifyOtp: async () => {},
   login: async () => {},
   logout: () => {},
   updateUser: () => {},
@@ -85,43 +83,6 @@ export const AuthProvider = ({ children }) => {
     }
   }, [pathname, loading, router]);
 
-  const sendOtp = async (email) => {
-    try {
-      const res = await api.post('/auth/send-otp', { email });
-      if (res.success) {
-        toast.success(res.message || 'Verification code sent to your email!');
-        return { success: true, data: res.data };
-      }
-      throw new Error(res.message || 'Failed to send OTP.');
-    } catch (err) {
-      toast.error(err.message || 'Failed to send verification code.');
-      return { success: false, error: err.message };
-    }
-  };
-
-  const verifyOtp = async (email, otp) => {
-    try {
-      const res = await api.post('/auth/verify-otp', { email, otp });
-      if (res.success && res.data) {
-        const admin = res.data.admin || res.data.user || res.data;
-        const jwtToken = res.data.token;
-        setUser(admin);
-        setToken(jwtToken);
-        setAuthToken(jwtToken);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('orqiva_admin_user', JSON.stringify(admin));
-        }
-        toast.success(`Welcome back, ${admin.name || 'Admin'}!`);
-        window.location.href = '/dashboard';
-        return { success: true };
-      }
-      throw new Error(res.message || 'Invalid verification code.');
-    } catch (err) {
-      toast.error(err.message || 'Invalid or expired verification code.');
-      return { success: false, error: err.message };
-    }
-  };
-
   const login = async (email, password) => {
     try {
       const res = await api.post('/auth/login', { email, password });
@@ -138,6 +99,7 @@ export const AuthProvider = ({ children }) => {
         window.location.href = '/dashboard';
         return { success: true };
       }
+      throw new Error(res.message || 'Login failed.');
     } catch (err) {
       toast.error(err.message || 'Login failed. Please check your credentials.');
       return { success: false, error: err.message };
@@ -170,7 +132,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, sendOtp, verifyOtp, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
