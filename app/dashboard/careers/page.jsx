@@ -7,7 +7,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Badge } from '@/components/ui/Badge';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { Plus, Edit2, Trash2, Loader2, BriefcaseBusiness, Users, Mail, Phone, ExternalLink } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, BriefcaseBusiness, Users, Mail, Phone, ExternalLink, FileText } from 'lucide-react';
 
 export default function CareersManagerPage() {
   const [activeTab, setActiveTab] = useState('jobs'); // 'jobs' or 'applications'
@@ -212,12 +212,62 @@ export default function CareersManagerPage() {
     },
   ];
 
+  const [selectedApp, setSelectedApp] = useState(null);
+  const [isAppModalOpen, setIsAppModalOpen] = useState(false);
+  const [isDeleteAppOpen, setIsDeleteAppOpen] = useState(false);
+  const [appToDelete, setAppToDelete] = useState(null);
+
+  const handleOpenAppDetails = (app) => {
+    setSelectedApp(app);
+    setIsAppModalOpen(true);
+  };
+
+  const handleOpenDeleteApp = (app) => {
+    setAppToDelete(app);
+    setIsDeleteAppOpen(true);
+  };
+
+  const handleDeleteAppConfirm = async () => {
+    if (!appToDelete) return;
+    setModalLoading(true);
+    try {
+      await api.delete(`/careers/applications/${appToDelete._id}`);
+      toast.success('Application deleted successfully.');
+      setIsDeleteAppOpen(false);
+      if (isAppModalOpen && selectedApp?._id === appToDelete._id) {
+        setIsAppModalOpen(false);
+      }
+      setAppToDelete(null);
+      fetchApplications();
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete application.');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const resolveFileUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+      return url;
+    }
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://orqiva-admin-backend.onrender.com/api/v1';
+    const serverOrigin = apiBase.replace(/\/api\/v1\/?$/, '');
+    return `${serverOrigin}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
   const appColumns = [
     {
       header: 'Candidate',
       cell: (row) => (
         <div>
-          <p className="font-bold text-white font-display text-sm">{row.candidateName}</p>
+          <button
+            type="button"
+            onClick={() => handleOpenAppDetails(row)}
+            className="font-bold text-white font-display text-sm hover:text-[#FF8336] transition text-left"
+          >
+            {row.candidateName}
+          </button>
           <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
             <span className="flex items-center gap-1"><Mail size={11} /> {row.email}</span>
             {row.phone && <span className="flex items-center gap-1"><Phone size={11} /> {row.phone}</span>}
@@ -228,27 +278,65 @@ export default function CareersManagerPage() {
     {
       header: 'Position Applied',
       cell: (row) => (
-        <span className="text-xs font-semibold text-slate-200">
-          {row.jobId?.title || 'Open Application'}
-        </span>
+        <div>
+          <span className="text-xs font-semibold text-slate-200">
+            {row.jobId?.title || row.jobTitle || 'Open Application'}
+          </span>
+          <p className="text-[11px] text-slate-400 mt-0.5">
+            {row.experience ? `Exp: ${row.experience}` : ''}
+            {row.noticePeriod ? ` • ${row.noticePeriod}` : ''}
+          </p>
+        </div>
       ),
     },
     {
-      header: 'Cover / Resume',
+      header: 'Compensation (CTC)',
+      cell: (row) => (
+        <div className="text-xs">
+          {row.expectedCtc || row.currentCtc ? (
+            <>
+              {row.currentCtc && <p className="text-slate-400">Curr: <span className="text-slate-200 font-medium">{row.currentCtc}</span></p>}
+              {row.expectedCtc && <p className="text-emerald-400 font-semibold">Exp: {row.expectedCtc}</p>}
+            </>
+          ) : (
+            <span className="text-slate-500">—</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      header: 'Resume / Links',
       cell: (row) => (
         <div>
-          {row.coverLetter && <p className="text-xs text-slate-300 italic line-clamp-1 max-w-xs">&ldquo;{row.coverLetter}&rdquo;</p>}
-          {row.resumeUrl && (
-            <a
-              href={row.resumeUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs text-[#FF8336] hover:underline flex items-center gap-1 mt-0.5 font-semibold"
-            >
-              <span>View Resume</span>
-              <ExternalLink size={12} />
-            </a>
-          )}
+          {row.coverLetter && <p className="text-xs text-slate-300 italic line-clamp-1 max-w-xs mb-1">&ldquo;{row.coverLetter}&rdquo;</p>}
+          <div className="flex items-center gap-3">
+            {row.resumeUrl ? (
+              <a
+                href={resolveFileUrl(row.resumeUrl)}
+                target="_blank"
+                rel="noreferrer"
+                download={row.resumeUrl.startsWith('data:') ? `${row.candidateName.replace(/\s+/g, '_')}_Resume.pdf` : undefined}
+                className="text-xs text-[#FF8336] bg-[#FF6A21]/10 border border-[#FF6A21]/30 hover:bg-[#FF6A21]/20 px-2.5 py-1 rounded-lg flex items-center gap-1 font-semibold transition"
+              >
+                <FileText size={12} />
+                <span>Download / View Resume</span>
+                <ExternalLink size={11} />
+              </a>
+            ) : (
+              <span className="text-xs text-slate-500 italic">No Resume</span>
+            )}
+            {row.portfolioUrl && (
+              <a
+                href={resolveFileUrl(row.portfolioUrl)}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-cyan-400 hover:underline flex items-center gap-1 font-semibold"
+              >
+                <span>Portfolio</span>
+                <ExternalLink size={11} />
+              </a>
+            )}
+          </div>
         </div>
       ),
     },
@@ -267,6 +355,29 @@ export default function CareersManagerPage() {
           <option value="Hired" className="bg-[#111C2E]">Hired</option>
           <option value="Rejected" className="bg-[#111C2E]">Rejected</option>
         </select>
+      ),
+    },
+    {
+      header: 'Actions',
+      className: 'text-right',
+      cell: (row) => (
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => handleOpenAppDetails(row)}
+            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white transition"
+          >
+            View Profile
+          </button>
+          <button
+            type="button"
+            onClick={() => handleOpenDeleteApp(row)}
+            className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 hover:text-rose-300 transition"
+            title="Delete Application"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       ),
     },
   ];
@@ -502,6 +613,167 @@ export default function CareersManagerPage() {
           loading={modalLoading}
           title="Delete Job Opening"
           message={`Are you sure you want to delete "${selectedJob?.title}"?`}
+        />
+
+        {/* Candidate Detail Modal */}
+        <Modal
+          isOpen={isAppModalOpen}
+          onClose={() => setIsAppModalOpen(false)}
+          title="Candidate Profile &amp; Application Details"
+          size="lg"
+        >
+          {selectedApp && (
+            <div className="space-y-5">
+              {/* Header Profile Summary */}
+              <div className="p-4 rounded-2xl bg-[#0B1220] border border-[#1E2D4A] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-black text-white font-display">{selectedApp.candidateName}</h3>
+                  <p className="text-xs text-[#FF8336] font-semibold mt-0.5">
+                    Position Applied: {selectedApp.jobId?.title || selectedApp.jobTitle || 'General Application'}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Applied on: {new Date(selectedApp.createdAt || Date.now()).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400 font-medium">Stage:</span>
+                  <select
+                    value={selectedApp.status || 'Applied'}
+                    onChange={(e) => {
+                      const newStatus = e.target.value;
+                      handleUpdateAppStatus(selectedApp._id, newStatus);
+                      setSelectedApp({ ...selectedApp, status: newStatus });
+                    }}
+                    className="glass-input rounded-xl px-3 py-1.5 text-xs font-bold text-white focus:outline-none"
+                  >
+                    <option value="Applied" className="bg-[#111C2E]">Applied</option>
+                    <option value="Reviewing" className="bg-[#111C2E]">Reviewing</option>
+                    <option value="Shortlisted" className="bg-[#111C2E]">Shortlisted</option>
+                    <option value="Interviewed" className="bg-[#111C2E]">Interviewed</option>
+                    <option value="Hired" className="bg-[#111C2E]">Hired</option>
+                    <option value="Rejected" className="bg-[#111C2E]">Rejected</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Contact & Professional Info Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="p-3.5 rounded-xl bg-[#111C2E] border border-[#1E2D4A]">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Email Address</p>
+                  <a href={`mailto:${selectedApp.email}`} className="text-sm font-semibold text-white hover:text-[#FF8336] transition mt-1 block">
+                    {selectedApp.email}
+                  </a>
+                </div>
+                <div className="p-3.5 rounded-xl bg-[#111C2E] border border-[#1E2D4A]">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Phone Number</p>
+                  <p className="text-sm font-semibold text-white mt-1">
+                    {selectedApp.phone || 'Not provided'}
+                  </p>
+                </div>
+                <div className="p-3.5 rounded-xl bg-[#111C2E] border border-[#1E2D4A]">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Experience</p>
+                  <p className="text-sm font-semibold text-white mt-1">
+                    {selectedApp.experience || 'Not specified'}
+                  </p>
+                </div>
+                <div className="p-3.5 rounded-xl bg-[#111C2E] border border-[#1E2D4A]">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Notice Period</p>
+                  <p className="text-sm font-semibold text-white mt-1">
+                    {selectedApp.noticePeriod || 'Immediate / Not specified'}
+                  </p>
+                </div>
+                <div className="p-3.5 rounded-xl bg-[#111C2E] border border-[#1E2D4A]">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Current CTC</p>
+                  <p className="text-sm font-semibold text-slate-200 mt-1">
+                    {selectedApp.currentCtc || 'Not disclosed'}
+                  </p>
+                </div>
+                <div className="p-3.5 rounded-xl bg-[#111C2E] border border-[#1E2D4A]">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Expected CTC</p>
+                  <p className="text-sm font-semibold text-emerald-400 mt-1">
+                    {selectedApp.expectedCtc || 'Negotiable'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Links */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {selectedApp.resumeUrl ? (
+                  <a
+                    href={resolveFileUrl(selectedApp.resumeUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-3.5 rounded-xl bg-[#FF6A21]/10 border border-[#FF6A21]/30 hover:bg-[#FF6A21]/20 transition flex items-center justify-between group"
+                  >
+                    <div>
+                      <p className="text-xs font-bold text-[#FF8336]">Candidate Resume / CV</p>
+                      <p className="text-[11px] text-slate-400 truncate max-w-[200px] mt-0.5">{selectedApp.resumeUrl}</p>
+                    </div>
+                    <ExternalLink size={16} className="text-[#FF8336] group-hover:translate-x-0.5 transition" />
+                  </a>
+                ) : (
+                  <div className="p-3.5 rounded-xl bg-[#111C2E] border border-[#1E2D4A] text-slate-500 text-xs flex items-center justify-center">
+                    No Resume URL Attached
+                  </div>
+                )}
+
+                {selectedApp.portfolioUrl ? (
+                  <a
+                    href={resolveFileUrl(selectedApp.portfolioUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 transition flex items-center justify-between group"
+                  >
+                    <div>
+                      <p className="text-xs font-bold text-cyan-400">Portfolio / LinkedIn</p>
+                      <p className="text-[11px] text-slate-400 truncate max-w-[200px] mt-0.5">{selectedApp.portfolioUrl}</p>
+                    </div>
+                    <ExternalLink size={16} className="text-cyan-400 group-hover:translate-x-0.5 transition" />
+                  </a>
+                ) : (
+                  <div className="p-3.5 rounded-xl bg-[#111C2E] border border-[#1E2D4A] text-slate-500 text-xs flex items-center justify-center">
+                    No Portfolio / LinkedIn Provided
+                  </div>
+                )}
+              </div>
+
+              {/* Cover Letter */}
+              {selectedApp.coverLetter && (
+                <div className="p-4 rounded-xl bg-[#0B1220] border border-[#1E2D4A]">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Candidate Cover Note</p>
+                  <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">{selectedApp.coverLetter}</p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-3 border-t border-[#1E2D4A]">
+                <button
+                  type="button"
+                  onClick={() => handleOpenDeleteApp(selectedApp)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500/30 border border-rose-500/30 transition flex items-center gap-1.5"
+                >
+                  <Trash2 size={13} />
+                  <span>Delete Application</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAppModalOpen(false)}
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 transition"
+                >
+                  Close Profile
+                </button>
+              </div>
+            </div>
+          )}
+        </Modal>
+
+        {/* Delete Application Confirm Dialog */}
+        <ConfirmDialog
+          isOpen={isDeleteAppOpen}
+          onClose={() => setIsDeleteAppOpen(false)}
+          onConfirm={handleDeleteAppConfirm}
+          loading={modalLoading}
+          title="Delete Candidate Application"
+          message={`Are you sure you want to delete the application submitted by "${appToDelete?.candidateName}"? This action cannot be undone.`}
         />
       </div>
   );
