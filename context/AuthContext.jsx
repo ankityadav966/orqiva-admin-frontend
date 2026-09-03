@@ -9,6 +9,8 @@ const AuthContext = createContext({
   user: null,
   token: null,
   loading: true,
+  sendOtp: async () => {},
+  verifyOtp: async () => {},
   login: async () => {},
   logout: () => {},
   updateUser: () => {},
@@ -23,44 +25,20 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const initAuth = async () => {
-      let savedToken = getAuthToken();
+      const savedToken = getAuthToken();
       if (typeof window !== 'undefined') {
         const savedUserStr = localStorage.getItem('orqiva_admin_user');
         if (savedUserStr) {
           try {
             setUser(JSON.parse(savedUserStr));
           } catch {
-            /* ignore JSON parse error */
+            /* ignore */
           }
         }
       }
 
-      // If no token exists, automatically authenticate with default admin credentials
+      // If no token exists, user must log in with OTP
       if (!savedToken) {
-        try {
-          const res = await api.post('/auth/login', {
-            email: 'admin@orqivatech.com',
-            password: 'Admin@Orqiva2026!',
-          });
-          if (res?.success && res?.data) {
-            const admin = res.data.admin || res.data.user || res.data;
-            const jwtToken = res.data.token;
-            setUser(admin);
-            setToken(jwtToken);
-            setAuthToken(jwtToken);
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('orqiva_admin_user', JSON.stringify(admin));
-            }
-            setLoading(false);
-            if (pathname === '/login' || pathname === '/') {
-              router.replace('/dashboard');
-            }
-            return;
-          }
-        } catch (err) {
-          console.warn('Auto-login attempt failed:', err.message);
-        }
-
         setLoading(false);
         if (pathname.startsWith('/dashboard')) {
           router.push('/login');
@@ -68,7 +46,6 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      // If token exists, immediately unlock the UI without waiting for network
       setToken(savedToken);
       setLoading(false);
 
@@ -77,28 +54,12 @@ export const AuthProvider = ({ children }) => {
         const res = await api.get('/auth/me');
         if (res?.success && res?.data) {
           setUser(res.data);
-          localStorage.setItem('orqiva_admin_user', JSON.stringify(res.data));
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('orqiva_admin_user', JSON.stringify(res.data));
+          }
         }
       } catch (err) {
         if (err.statusCode === 401 || err.statusCode === 403) {
-          // Attempt seamless re-authentication
-          try {
-            const reLogin = await api.post('/auth/login', {
-              email: 'admin@orqivatech.com',
-              password: 'Admin@Orqiva2026!',
-            });
-            if (reLogin?.success && reLogin?.data) {
-              const admin = reLogin.data.admin || reLogin.data.user || reLogin.data;
-              const jwtToken = reLogin.data.token;
-              setUser(admin);
-              setToken(jwtToken);
-              setAuthToken(jwtToken);
-              return;
-            }
-          } catch {
-            /* fallback */
-          }
-
           setAuthToken(null);
           setUser(null);
           setToken(null);
@@ -123,6 +84,43 @@ export const AuthProvider = ({ children }) => {
       }
     }
   }, [pathname, loading, router]);
+
+  const sendOtp = async (email) => {
+    try {
+      const res = await api.post('/auth/send-otp', { email });
+      if (res.success) {
+        toast.success(res.message || 'Verification code sent to your email!');
+        return { success: true, data: res.data };
+      }
+      throw new Error(res.message || 'Failed to send OTP.');
+    } catch (err) {
+      toast.error(err.message || 'Failed to send verification code.');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const verifyOtp = async (email, otp) => {
+    try {
+      const res = await api.post('/auth/verify-otp', { email, otp });
+      if (res.success && res.data) {
+        const admin = res.data.admin || res.data.user || res.data;
+        const jwtToken = res.data.token;
+        setUser(admin);
+        setToken(jwtToken);
+        setAuthToken(jwtToken);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('orqiva_admin_user', JSON.stringify(admin));
+        }
+        toast.success(`Welcome back, ${admin.name || 'Admin'}!`);
+        window.location.href = '/dashboard';
+        return { success: true };
+      }
+      throw new Error(res.message || 'Invalid verification code.');
+    } catch (err) {
+      toast.error(err.message || 'Invalid or expired verification code.');
+      return { success: false, error: err.message };
+    }
+  };
 
   const login = async (email, password) => {
     try {
@@ -172,7 +170,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, loading, sendOtp, verifyOtp, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
