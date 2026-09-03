@@ -72,7 +72,7 @@ export const Header = ({ onMobileMenuClick }) => {
         {/* Live Backend Connection Status */}
         <div className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span>API Connected (Port 5000)</span>
+          <span>API Connected</span>
         </div>
 
         {/* User Profile Pill */}

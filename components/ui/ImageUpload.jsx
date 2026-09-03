@@ -23,9 +23,12 @@ export const ImageUpload = ({ value, onChange, label = 'Upload Image', hint = 'P
       const res = await api.upload('/media/upload', formData);
       if (res.success && res.data?.url) {
         // Backend returns /uploads/... so full URL is accessible
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL
+          ? process.env.NEXT_PUBLIC_API_URL.replace('/api/v1', '')
+          : 'https://orqiva-admin-backend.onrender.com';
         const fullUrl = res.data.url.startsWith('http')
           ? res.data.url
-          : `${process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace('/api/v1', '') : 'http://localhost:5000'}${res.data.url}`;
+          : `${baseUrl}${res.data.url}`;
         onChange(fullUrl);
         toast.success('Image uploaded successfully.');
       }
