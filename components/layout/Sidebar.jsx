@@ -175,22 +175,9 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
         </div>
 
         {/* Bottom Status & User Profile Footer */}
-        <div className="p-3 border-t border-slate-800/80 bg-[#080C14]/90 space-y-2">
+        <div className="p-3  border-slate-800/80 bg-[#080C14]/90 space-y-2">
           {/* Quick View Live Website Link */}
-          {!isCollapsed && (
-            <a
-              href={process.env.NEXT_PUBLIC_WEBSITE_URL || 'https://www.orqivatech.com/'}
-              target="_blank"
-              rel="noreferrer"
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white transition-all group"
-            >
-              <div className="flex items-center gap-2">
-                <Globe size={14} className="text-[#FF6A21]" />
-                <span>Visit Live Site</span>
-              </div>
-              <ExternalLink size={12} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-            </a>
-          )}
+
 
           {/* User Profile Bar */}
           {!isCollapsed && user && (
