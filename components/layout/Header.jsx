@@ -64,7 +64,7 @@ export const Header = ({ onMobileMenuClick }) => {
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 transition-all hover:border-orange-500/40"
         >
           <Globe size={13} className="text-[#FF6A21]" />
-          {/* <span className="hidden sm:inline">View Public Website</span> */}
+          <span className="hidden sm:inline">View Public Website</span>
           <span className="sm:hidden">Website</span>
           <ExternalLink size={11} className="text-slate-400" />
         </a>
