@@ -18,4 +18,5 @@ yarn-error.log*
 .vercel
 .idea/
 .vscode/
+*.zip
 
