@@ -251,7 +251,7 @@ export default function CareersManagerPage() {
     if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
       return url;
     }
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://orqiva-admin-backend.onrender.com/api/v1';
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://api.orqivatech.com/api/v1';
     const serverOrigin = apiBase.replace(/\/api\/v1\/?$/, '');
     return `${serverOrigin}${url.startsWith('/') ? '' : '/'}${url}`;
   };
